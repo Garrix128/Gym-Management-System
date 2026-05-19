@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日程管理 — GYMPRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../common.css">
+<style>
+.schedule-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.schedule-calendar .day-header {
+  text-align: center; font-size: 12px; font-weight: 500;
+  color: var(--stone); text-transform: uppercase; padding: 8px;
+}
+.schedule-calendar .day-cell {
+  min-height: 120px; background: var(--soft-cloud);
+  padding: 6px; border-radius: var(--radius-none);
+  cursor: pointer; transition: background .15s;
+}
+.schedule-calendar .day-cell:hover { background: var(--hairline-soft); }
+.schedule-calendar .day-cell.other-month { opacity: 0.3; }
+.schedule-calendar .day-cell.today { box-shadow: inset 0 0 0 2px var(--ink); }
+.day-num { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.day-event {
+  font-size: 11px; padding: 3px 6px; border-radius: 3px;
+  margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; font-weight: 500;
+}
+.day-event.group { background: var(--ink); color: var(--on-primary); }
+.day-event.pt { background: var(--info); color: var(--on-primary); }
+.schedule-list { margin-top: var(--space-xl); }
+.schedule-item {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: var(--space-md) 0; border-bottom: 1px solid var(--hairline-soft);
+}
+.schedule-time {
+  font-family: var(--font-display); font-size: 20px;
+  min-width: 100px; color: var(--ink);
+}
+.schedule-item-body { flex: 1; }
+.schedule-item-title { font-size: 14px; font-weight: 500; }
+.schedule-item-meta { font-size: 12px; color: var(--mute); }
+@media (max-width: 960px) { .schedule-calendar .day-cell { min-height: 80px; } }
+</style>
+</head>
+<body>
+
+<div class="utility-bar">
+  <span>找门店</span><span>帮助</span>
+  <span id="util-join" onclick="openRegister()">加入我们</span>
+  <span id="util-login" onclick="openLogin()">登录</span>
+  <span id="util-logout" class="hidden" onclick="handleLogout()">退出登录</span>
+</div>
+<nav class="primary-nav">
+  <div class="nav-logo" onclick="location.href='../prototype.html'">GYM<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="../prototype.html" data-page="dashboard">仪表盘</a>
+    <a href="members.html" data-page="members">会员</a>
+    <a href="classes.html" data-page="classes">课程</a>
+    <a href="trainers.html" data-page="trainers">教练</a>
+    <a href="schedule.html" data-page="schedule" class="active">日程</a>
+  </div>
+  <input type="text" class="search-pill" placeholder="搜索..." />
+  <div id="nav-logged-out">
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14.5a2.5 2.5 0 005 0"/><path d="M4 7a5 5 0 0110 0v4l2 2H2l2-2V7z"/></svg></button>
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="5" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></button>
+  </div>
+  <div id="nav-logged-in" class="nav-user-area hidden">
+    <span class="nav-role-badge" id="nav-role-badge">管理员</span>
+    <span class="nav-user-name" id="nav-user-name">管理员</span>
+  </div>
+</nav>
+
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-backdrop" onclick="closeAuth()"></div>
+  <div id="auth-login" class="auth-panel">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">登录</div><div class="auth-subtitle">选择你的角色，进入训练管理系统</div>
+    <div class="auth-role-switch" id="login-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="login-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="login-password" placeholder="请输入密码" required /></div>
+      <div id="login-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">登录</button>
+    </form>
+    <div class="auth-switch-link">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+  </div>
+  <div id="auth-register" class="auth-panel hidden">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">注册</div><div class="auth-subtitle">创建你的账号，开启训练之旅</div>
+    <div class="auth-role-switch" id="register-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+      <div class="auth-field"><label>姓名</label><input type="text" id="register-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="register-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="register-password" placeholder="请设置密码（至少6位）" minlength="6" required /></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="register-confirm" placeholder="请再次输入密码" required /></div>
+      <div id="register-error" class="auth-error hidden"></div><div id="register-success" class="auth-success hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">注册</button>
+    </form>
+    <div class="auth-switch-link">已有账号？<a onclick="switchToLogin()">立即登录</a></div>
+  </div>
+</div>
+
+<div class="page-layout">
+  <aside class="va-sidebar">
+    <div class="sidebar-section">主导航</div>
+    <a href="../prototype.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="11" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>仪表盘</a>
+    <a href="members.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="4.5" r="3"/><path d="M2.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>会员管理</a>
+    <a href="classes.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>课程安排</a>
+    <a href="trainers.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="4" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6"/><circle cx="11" cy="12" r="2.5"/><path d="M11 7v3.2M8.5 9.5h5"/></svg>教练团队</a>
+    <a href="schedule.html" class="active"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>日程管理</a>
+    <div class="sidebar-section">运营</div>
+    <a href="reports.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="4" height="8" rx="1"/><rect x="7" y="4" width="4" height="11" rx="1"/><rect x="12" y="9" width="4" height="6" rx="1"/></svg>报表分析</a>
+    <a href="settings.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>系统设置</a>
+    <div class="sidebar-section">快捷入口</div>
+    <a href="kanban.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M6 1v3h6V1M6 8h6M6 11h4"/></svg>排课看板</a>
+  </aside>
+
+  <main class="page-main">
+    <div class="page-content-header">
+      <h2 class="section-title">日程管理</h2>
+      <div style="display:flex;gap:var(--space-md);align-items:center;">
+        <div class="chip-row">
+          <button class="chip active" onclick="switchView('month', this)">月</button>
+          <button class="chip" onclick="switchView('week', this)">周</button>
+          <button class="chip" onclick="switchView('day', this)">日</button>
+        </div>
+        <button class="btn-primary">+ 新增日程</button>
+      </div>
+    </div>
+
+    <div id="schedule-month-view">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-lg);">
+        <button class="btn-secondary">← 上月</button>
+        <span style="font-family:var(--font-display);font-size:24px;">2026 年 5 月</span>
+        <button class="btn-secondary">下月 →</button>
+      </div>
+      <div class="schedule-calendar" id="schedule-grid"></div>
+    </div>
+
+    <div class="schedule-list" style="margin-top:var(--space-xl);">
+      <h3 class="section-title" style="font-size:24px;">今日日程</h3>
+      <div id="today-schedule"></div>
+    </div>
+  </main>
+</div>
+
+<script src="../common.js"></script>
+<script>
+setActiveNav('schedule');
+
+var events = [
+  { id: 1, date: 10, title: '力量训练 进阶班', trainer: '王建国', time: '09:00', type: 'group', status: 'active' },
+  { id: 2, date: 10, title: '瑜伽流 初级', trainer: '陈雨萱', time: '10:00', type: 'group', status: 'active' },
+  { id: 3, date: 10, title: 'HIIT 燃脂', trainer: '赵海龙', time: '17:00', type: 'group', status: 'active' },
+  { id: 4, date: 10, title: '动感单车', trainer: '李教练', time: '19:00', type: 'group', status: 'full' },
+  { id: 5, date: 12, title: '拳击体能', trainer: '刘强', time: '15:00', type: 'group', status: 'active' },
+  { id: 6, date: 12, title: '李娜 私教', trainer: '陈雨萱', time: '09:00', type: 'pt', status: 'active' },
+  { id: 7, date: 15, title: '普拉提 中级', trainer: '陈雨萱', time: '10:00', type: 'group', status: 'active' },
+  { id: 8, date: 15, title: '周杰 马拉松备赛', trainer: '赵海龙', time: '06:00', type: 'pt', status: 'active' },
+  { id: 9, date: 17, title: '力量训练', trainer: '王建国', time: '09:00', type: 'group', status: 'active' },
+  { id: 10, date: 19, title: 'HIIT 燃脂', trainer: '赵海龙', time: '17:00', type: 'group', status: 'active' }
+];
+
+function buildCalendar() {
+  var grid = document.getElementById('schedule-grid');
+  var dayHeaders = ['一','二','三','四','五','六','日'];
+  var headersHtml = dayHeaders.map(function(h) { return '<div class="day-header">'+h+'</div>'; }).join('');
+  var today = 10;
+  var html = '';
+  for (var i = 0; i < 4; i++) html += '<div class="day-cell other-month"></div>';
+  for (var d = 1; d <= 31; d++) {
+    var cls = d === today ? ' today' : '';
+    var dayEvents = events.filter(function(e) { return e.date === d; });
+    var eventHtml = dayEvents.map(function(ev) {
+      return '<div class="day-event '+ev.type+'" onclick="event.stopPropagation();showEvent('+ev.id+')">'+ev.time+' '+ev.title+'</div>';
+    }).join('');
+    html += '<div class="day-cell'+cls+'" onclick="focusDay('+d+')"><div class="day-num">'+d+'</div>'+eventHtml+'</div>';
+  }
+  grid.innerHTML = headersHtml + html;
+}
+
+function renderTodaySchedule() {
+  var todayEvents = events.filter(function(e) { return e.date === 10; });
+  var container = document.getElementById('today-schedule');
+  container.innerHTML = todayEvents.map(function(ev) {
+    var statusBadge = ev.status === 'full' ? '<span class="badge badge-warning" style="margin-left:8px;">满员</span>' : '';
+    return '<div class="schedule-item"><div class="schedule-time">'+ev.time+'</div><div class="schedule-item-body"><div class="schedule-item-title">'+ev.title+statusBadge+'</div><div class="schedule-item-meta">'+ev.trainer+' · '+(ev.type==='pt'?'私教':'团课')+'</div></div><button class="btn-secondary" onclick="showEvent('+ev.id+')">详情</button></div>';
+  }).join('');
+}
+
+function focusDay(d) { alert('切换到 ' + d + ' 日视图'); }
+function showEvent(id) { var ev = events.find(function(e){return e.id===id;}); if(ev) alert(ev.title + '\n教练: ' + ev.trainer + '\n时间: ' + ev.time + '\n类型: ' + (ev.type==='pt'?'私教':'团课')); }
+function switchView(view, btn) {
+  document.querySelectorAll('#schedule-month-view + div .chip-row .chip').forEach(function(c) { c.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+}
+
+buildCalendar();
+renderTodaySchedule();
+
+onLoginSuccess = function() {
+  if (authState.role === 'member') {
+    document.querySelectorAll('.va-sidebar a').forEach(function(l) {
+      var t = l.textContent.trim();
+      if (t === '报表分析' || t === '系统设置') l.style.display = 'none';
+    });
+  }
+};
+onLogout = function() { document.querySelectorAll('.va-sidebar a').forEach(function(l) { l.style.display = ''; }); };
+</script>
+</body>
+</html>

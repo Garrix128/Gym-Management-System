@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>仪表盘 — GYMPRO 体育训练管理系统</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+body { padding-bottom: 80px; }
+.va-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-section);
+}
+.va-kpi-card {
+  background: var(--soft-cloud);
+  padding: var(--space-xl);
+  border-radius: var(--radius-none);
+}
+.va-kpi-card .kpi-label {
+  font-size: 12px; font-weight: 500; color: var(--mute);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+.va-kpi-card .kpi-value {
+  font-family: var(--font-display);
+  font-size: 48px; line-height: 1; color: var(--ink);
+}
+.va-kpi-card .kpi-change { font-size: 13px; margin-top: var(--space-sm); }
+.va-content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-xl);
+}
+.va-activity-item {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.va-activity-item:last-child { border-bottom: none; }
+.va-activity-dot {
+  width: 10px; height: 10px;
+  border-radius: var(--radius-full); flex-shrink: 0;
+}
+.va-activity-dot.member { background: var(--info); }
+.va-activity-dot.class { background: var(--success); }
+.va-activity-info { flex: 1; }
+.va-activity-info .act-name { font-size: 14px; font-weight: 500; }
+.va-activity-info .act-desc { font-size: 12px; color: var(--mute); margin-top: 2px; }
+.va-activity-time { font-size: 12px; color: var(--stone); }
+.va-calendar { text-align: center; }
+.va-calendar-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-md); font-weight: 500;
+}
+.va-calendar-days {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; font-size: 12px; color: var(--mute);
+  margin-bottom: var(--space-xs);
+}
+.va-calendar-dates { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.va-calendar-dates span {
+  padding: 8px; border-radius: var(--radius-full);
+  font-size: 13px; cursor: pointer;
+}
+.va-calendar-dates span:hover { background: var(--soft-cloud); }
+.va-calendar-dates span.today { background: var(--ink); color: var(--on-primary); }
+.va-calendar-dates span.has-event::after {
+  content: ''; display: block;
+  width: 4px; height: 4px;
+  background: var(--ink);
+  border-radius: var(--radius-full);
+  margin: 2px auto 0;
+}
+.va-calendar-dates span.today.has-event::after { background: var(--on-primary); }
+.member-welcome {
+  background: var(--ink); color: var(--on-primary);
+  padding: var(--space-xl) var(--space-xxl);
+  margin-bottom: var(--space-section);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.member-welcome .mw-greeting {
+  font-family: var(--font-display); font-size: 36px; text-transform: uppercase;
+}
+.member-welcome .mw-info { font-size: 14px; color: var(--stone); margin-top: var(--space-xs); }
+
+@media (max-width: 960px) {
+  .va-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .va-content-grid { grid-template-columns: 1fr; }
+  .va-sidebar { display: none; }
+  .member-welcome { flex-direction: column; gap: var(--space-md); text-align: center; }
+}
+@media (max-width: 480px) {
+  .va-kpi-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Utility Bar -->
+<div class="utility-bar">
+  <span>找门店</span>
+  <span>帮助</span>
+  <span id="util-join" onclick="openRegister()">加入我们</span>
+  <span id="util-login" onclick="openLogin()">登录</span>
+  <span id="util-logout" class="hidden" onclick="handleLogout()">退出登录</span>
+</div>
+
+<!-- Primary Nav -->
+<nav class="primary-nav">
+  <div class="nav-logo" onclick="location.href='prototype.html'">GYM<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="prototype.html" data-page="dashboard" class="active">仪表盘</a>
+    <a href="pages/members.html" data-page="members">会员</a>
+    <a href="pages/classes.html" data-page="classes">课程</a>
+    <a href="pages/trainers.html" data-page="trainers">教练</a>
+    <a href="pages/schedule.html" data-page="schedule">日程</a>
+  </div>
+  <input type="text" class="search-pill" placeholder="搜索..." />
+  <div id="nav-logged-out">
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14.5a2.5 2.5 0 005 0"/><path d="M4 7a5 5 0 0110 0v4l2 2H2l2-2V7z"/></svg>
+    </button>
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="5" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+    </button>
+  </div>
+  <div id="nav-logged-in" class="nav-user-area hidden">
+    <span class="nav-role-badge" id="nav-role-badge">管理员</span>
+    <span class="nav-user-name" id="nav-user-name">管理员</span>
+  </div>
+</nav>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-backdrop" onclick="closeAuth()"></div>
+  <div id="auth-login" class="auth-panel">
+    <div class="auth-logo">GYM<span>PRO</span></div>
+    <div class="auth-title">登录</div>
+    <div class="auth-subtitle">选择你的角色，进入训练管理系统</div>
+    <div class="auth-role-switch" id="login-role-switch">
+      <button data-role="member" class="active">会员</button>
+      <button data-role="admin">管理员</button>
+    </div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="auth-field">
+        <label>邮箱 / 手机号</label>
+        <input type="text" id="login-email" placeholder="请输入邮箱或手机号" required />
+      </div>
+      <div class="auth-field">
+        <label>密码</label>
+        <input type="password" id="login-password" placeholder="请输入密码" required />
+      </div>
+      <div id="login-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">登录</button>
+    </form>
+    <div class="auth-switch-link">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+  </div>
+  <div id="auth-register" class="auth-panel hidden">
+    <div class="auth-logo">GYM<span>PRO</span></div>
+    <div class="auth-title">注册</div>
+    <div class="auth-subtitle">创建你的账号，开启训练之旅</div>
+    <div class="auth-role-switch" id="register-role-switch">
+      <button data-role="member" class="active">会员</button>
+      <button data-role="admin">管理员</button>
+    </div>
+    <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+      <div class="auth-field"><label>姓名</label><input type="text" id="register-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="register-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="register-password" placeholder="请设置密码（至少6位）" minlength="6" required /></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="register-confirm" placeholder="请再次输入密码" required /></div>
+      <div id="register-error" class="auth-error hidden"></div>
+      <div id="register-success" class="auth-success hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">注册</button>
+    </form>
+    <div class="auth-switch-link">已有账号？<a onclick="switchToLogin()">立即登录</a></div>
+  </div>
+</div>
+
+<!-- Dashboard Layout -->
+<div class="page-layout">
+  <aside class="va-sidebar">
+    <div class="sidebar-section">主导航</div>
+    <a href="prototype.html" class="active">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="11" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>
+      仪表盘
+    </a>
+    <a href="pages/members.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="4.5" r="3"/><path d="M2.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>
+      会员管理
+    </a>
+    <a href="pages/classes.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>
+      课程安排
+    </a>
+    <a href="pages/trainers.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="4" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6"/><circle cx="11" cy="12" r="2.5"/><path d="M11 7v3.2M8.5 9.5h5"/></svg>
+      教练团队
+    </a>
+    <a href="pages/schedule.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>
+      日程管理
+    </a>
+    <div class="sidebar-section">运营</div>
+    <a href="pages/reports.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="4" height="8" rx="1"/><rect x="7" y="4" width="4" height="11" rx="1"/><rect x="12" y="9" width="4" height="6" rx="1"/></svg>
+      报表分析
+    </a>
+    <a href="pages/settings.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>
+      系统设置
+    </a>
+    <div class="sidebar-section">快捷入口</div>
+    <a href="pages/kanban.html">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M6 1v3h6V1M6 8h6M6 11h4"/></svg>
+      排课看板
+    </a>
+  </aside>
+
+  <main class="page-main">
+    <div id="member-welcome" class="member-welcome hidden">
+      <div>
+        <div class="mw-greeting" id="mw-name">欢迎回来</div>
+        <div class="mw-info" id="mw-plan-info"></div>
+      </div>
+      <button class="btn-outline" style="background:var(--on-primary);color:var(--ink);" onclick="location.href='pages/classes.html'">预约课程</button>
+    </div>
+
+    <div class="va-kpi-grid" id="kpi-grid">
+      <div class="va-kpi-card">
+        <div class="kpi-label">活跃会员</div>
+        <div class="kpi-value" id="kpi-0-val">1,284</div>
+        <div class="kpi-change" id="kpi-0-chg"><span style="color:var(--success);">↑ 12% 较上月</span></div>
+      </div>
+      <div class="va-kpi-card">
+        <div class="kpi-label">本月课程</div>
+        <div class="kpi-value" id="kpi-1-val">386</div>
+        <div class="kpi-change" id="kpi-1-chg"><span style="color:var(--success);">↑ 8% 较上月</span></div>
+      </div>
+      <div class="va-kpi-card">
+        <div class="kpi-label">在岗教练</div>
+        <div class="kpi-value" id="kpi-2-val">24</div>
+        <div class="kpi-change" id="kpi-2-chg"><span style="color:var(--mute);">持平</span></div>
+      </div>
+    </div>
+
+    <div class="va-content-grid">
+      <div class="card">
+        <h3 class="section-title" style="font-size:24px;margin-bottom:var(--space-lg);">最近动态</h3>
+        <div id="activity-list">
+          <div class="va-activity-item">
+            <div class="va-activity-dot member"></div>
+            <div class="va-activity-info"><div class="act-name">张伟 — 新会员注册</div><div class="act-desc">购买了年费会员 · Pro 计划</div></div>
+            <div class="va-activity-time">10 分钟前</div>
+          </div>
+          <div class="va-activity-item">
+            <div class="va-activity-dot class"></div>
+            <div class="va-activity-info"><div class="act-name">动感单车 — 已满员</div><div class="act-desc">李教练 · 今晚 19:00 · 30/30 人</div></div>
+            <div class="va-activity-time">25 分钟前</div>
+          </div>
+          <div class="va-activity-item">
+            <div class="va-activity-dot member"></div>
+            <div class="va-activity-info"><div class="act-name">刘洋 — 体测完成</div><div class="act-desc">InBody 体测 · 体脂率 18.5%</div></div>
+            <div class="va-activity-time">2 小时前</div>
+          </div>
+          <div class="va-activity-item">
+            <div class="va-activity-dot class"></div>
+            <div class="va-activity-info"><div class="act-name">瑜伽初级班 — 新增课程</div><div class="act-desc">陈教练 · 每周三/五 10:00</div></div>
+            <div class="va-activity-time">3 小时前</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card va-calendar">
+          <div class="va-calendar-header">
+            <button class="btn-icon" style="width:32px;height:32px;">←</button>
+            <span style="font-weight:500;">2026 年 5 月</span>
+            <button class="btn-icon" style="width:32px;height:32px;">→</button>
+          </div>
+          <div class="va-calendar-days"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          <div class="va-calendar-dates" id="cal-dates"></div>
+        </div>
+        <div class="card" style="margin-top:var(--space-md);">
+          <h4 style="font-size:14px;font-weight:500;margin-bottom:var(--space-md);">今日课程</h4>
+          <div style="font-size:13px;color:var(--mute);margin-bottom:8px;">09:00 — 瑜伽流 · 陈教练</div>
+          <div style="font-size:13px;color:var(--mute);margin-bottom:8px;">12:00 — 力量训练 · 王教练</div>
+          <div style="font-size:13px;color:var(--mute);margin-bottom:8px;">17:00 — HIIT · 赵教练</div>
+          <div style="font-size:13px;font-weight:500;color:var(--ink);">19:00 — 动感单车 · 李教练 <span class="badge badge-warning" style="margin-left:8px;">满员</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-sm);margin-top:var(--space-section);">
+      <div class="card" style="text-align:center;">
+        <div style="font-family:var(--font-display);font-size:36px;color:var(--success);">92%</div>
+        <div style="font-size:13px;color:var(--mute);margin-top:var(--space-xs);">会员出勤率</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-family:var(--font-display);font-size:36px;color:var(--info);">4.8</div>
+        <div style="font-size:13px;color:var(--mute);margin-top:var(--space-xs);">教练平均评分</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="common.js"></script>
+<script>
+setActiveNav('dashboard');
+
+function showMemberDashboard() {
+  var w = document.getElementById('member-welcome');
+  if (w) { w.classList.remove('hidden'); }
+  document.getElementById('mw-name').textContent = '欢迎回来，' + authState.name;
+  document.getElementById('mw-plan-info').textContent = 'Pro 会员 · 剩余 187 天 · 出勤率 92%';
+  var links = document.querySelectorAll('.va-sidebar a');
+  links.forEach(function(l) {
+    var t = l.textContent.trim();
+    if (t === '报表分析' || t === '系统设置') l.style.display = 'none';
+  });
+  document.getElementById('kpi-0-val').textContent = '18';
+  document.querySelector('#kpi-0-chg').innerHTML = '<span style="color:var(--success);">↑ 超出目标 3 次</span>';
+  document.querySelector('.va-kpi-card:nth-child(1) .kpi-label').textContent = '本月训练';
+  document.getElementById('kpi-1-val').textContent = '8,420';
+  document.querySelector('#kpi-1-chg').innerHTML = '<span style="color:var(--success);">↑ 12% 较上月</span>';
+  document.querySelector('.va-kpi-card:nth-child(2) .kpi-label').textContent = '消耗卡路里';
+  document.getElementById('kpi-2-val').textContent = '18.5%';
+  document.querySelector('#kpi-2-chg').innerHTML = '<span style="color:var(--success);">↓ 1.2% 较上月</span>';
+  document.querySelector('.va-kpi-card:nth-child(3) .kpi-label').textContent = '体脂率';
+}
+function resetToAdminDashboard() {
+  var w = document.getElementById('member-welcome');
+  if (w) w.classList.add('hidden');
+  var links = document.querySelectorAll('.va-sidebar a');
+  links.forEach(function(l) { l.style.display = ''; });
+  document.querySelector('.va-kpi-card:nth-child(1) .kpi-label').textContent = '活跃会员';
+  document.getElementById('kpi-0-val').textContent = '1,284';
+  document.querySelector('#kpi-0-chg').innerHTML = '<span style="color:var(--success);">↑ 12% 较上月</span>';
+  document.querySelector('.va-kpi-card:nth-child(2) .kpi-label').textContent = '本月课程';
+  document.getElementById('kpi-1-val').textContent = '386';
+  document.querySelector('#kpi-1-chg').innerHTML = '<span style="color:var(--success);">↑ 8% 较上月</span>';
+  document.querySelector('.va-kpi-card:nth-child(3) .kpi-label').textContent = '在岗教练';
+  document.getElementById('kpi-2-val').textContent = '24';
+  document.querySelector('#kpi-2-chg').innerHTML = '<span style="color:var(--mute);">持平</span>';
+}
+onLoginSuccess = function() {
+  if (authState.role === 'member') showMemberDashboard();
+  else resetToAdminDashboard();
+};
+onLogout = function() { resetToAdminDashboard(); };
+
+(function() {
+  var calDates = document.getElementById('cal-dates');
+  if (!calDates) return;
+  var today = 10;
+  var events = [3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26, 29, 31];
+  var html = '';
+  for (var i = 0; i < 4; i++) html += '<span></span>';
+  for (var d = 1; d <= 31; d++) {
+    var cls = '';
+    if (d === today) cls += ' today';
+    if (events.indexOf(d) !== -1) cls += ' has-event';
+    html += '<span class="' + cls + '">' + d + '</span>';
+  }
+  calDates.innerHTML = html;
+})();
+</script>
+</body>
+</html>

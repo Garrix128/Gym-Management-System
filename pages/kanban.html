@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排课看板 — GYMPRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../common.css">
+<style>
+.kanban-board {
+  display: flex; gap: var(--space-xl); overflow-x: auto;
+  flex: 1; padding: var(--space-xl);
+}
+.kanban-column {
+  flex: 1; min-width: 280px; max-width: 360px;
+  background: var(--soft-cloud); border-radius: var(--radius-none);
+  padding: var(--space-md);
+}
+.kanban-column-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-md); padding: 0 var(--space-xs);
+}
+.kanban-column-title {
+  font-size: 14px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--mute);
+}
+.kanban-column-count {
+  background: var(--hairline-soft); border-radius: var(--radius-full);
+  padding: 2px 10px; font-size: 12px; font-weight: 500;
+}
+.kanban-cards { display: flex; flex-direction: column; gap: var(--space-sm); }
+.kanban-card {
+  background: var(--canvas); border: 1px solid var(--hairline-soft);
+  border-radius: var(--radius-none); padding: var(--space-md) var(--space-lg);
+  cursor: grab; transition: border-color .15s;
+}
+.kanban-card:hover { border-color: var(--ink); }
+.kanban-card-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: var(--space-sm);
+}
+.kanban-card-id { font-size: 11px; color: var(--stone); font-weight: 500; }
+.kanban-card-type {
+  font-size: 11px; padding: 2px 8px; border-radius: var(--radius-full);
+  font-weight: 500;
+}
+.kanban-card-type.group { background: #e8f0fe; color: #1a73e8; }
+.kanban-card-type.pt { background: #fce8e6; color: #c5221f; }
+.kanban-card-type.nutrition { background: #e6f4ea; color: #137333; }
+.kanban-card-title { font-size: 14px; font-weight: 500; margin-bottom: var(--space-xs); }
+.kanban-card-meta { font-size: 12px; color: var(--mute); }
+.kanban-card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: var(--space-md); font-size: 12px; color: var(--stone);
+}
+.kanban-card-avatar {
+  width: 28px; height: 28px; border-radius: var(--radius-full);
+  background: var(--soft-cloud); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 500;
+}
+.kanban-layout { display: flex; flex-direction: column; min-height: calc(100vh - var(--nav-height) - 36px); }
+.kanban-toolbar {
+  padding: var(--space-lg) var(--space-xl);
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--hairline-soft);
+  background: var(--canvas);
+}
+</style>
+</head>
+<body>
+
+<div class="utility-bar">
+  <span>找门店</span><span>帮助</span>
+  <span id="util-join" onclick="openRegister()">加入我们</span>
+  <span id="util-login" onclick="openLogin()">登录</span>
+  <span id="util-logout" class="hidden" onclick="handleLogout()">退出登录</span>
+</div>
+<nav class="primary-nav">
+  <div class="nav-logo" onclick="location.href='../prototype.html'">GYM<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="../prototype.html" data-page="dashboard">仪表盘</a>
+    <a href="members.html" data-page="members">会员</a>
+    <a href="classes.html" data-page="classes">课程</a>
+    <a href="trainers.html" data-page="trainers">教练</a>
+    <a href="schedule.html" data-page="schedule">日程</a>
+  </div>
+  <input type="text" class="search-pill" placeholder="搜索..." />
+  <div id="nav-logged-out">
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14.5a2.5 2.5 0 005 0"/><path d="M4 7a5 5 0 0110 0v4l2 2H2l2-2V7z"/></svg></button>
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="5" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></button>
+  </div>
+  <div id="nav-logged-in" class="nav-user-area hidden">
+    <span class="nav-role-badge" id="nav-role-badge">管理员</span>
+    <span class="nav-user-name" id="nav-user-name">管理员</span>
+  </div>
+</nav>
+
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-backdrop" onclick="closeAuth()"></div>
+  <div id="auth-login" class="auth-panel">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">登录</div><div class="auth-subtitle">选择你的角色，进入训练管理系统</div>
+    <div class="auth-role-switch" id="login-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="login-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="login-password" placeholder="请输入密码" required /></div>
+      <div id="login-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">登录</button>
+    </form>
+    <div class="auth-switch-link">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+  </div>
+  <div id="auth-register" class="auth-panel hidden">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">注册</div><div class="auth-subtitle">创建你的账号，开启训练之旅</div>
+    <div class="auth-role-switch" id="register-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+      <div class="auth-field"><label>姓名</label><input type="text" id="register-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="register-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="register-password" placeholder="请设置密码（至少6位）" minlength="6" required /></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="register-confirm" placeholder="请再次输入密码" required /></div>
+      <div id="register-error" class="auth-error hidden"></div><div id="register-success" class="auth-success hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">注册</button>
+    </form>
+    <div class="auth-switch-link">已有账号？<a onclick="switchToLogin()">立即登录</a></div>
+  </div>
+</div>
+
+<div class="kanban-layout">
+  <div class="kanban-toolbar">
+    <div style="display:flex;align-items:center;gap:var(--space-lg);">
+      <h2 style="font-family:var(--font-display);font-size:24px;text-transform:uppercase;">训练管理看板</h2>
+      <div class="chip-row">
+        <button class="chip active">看板</button>
+        <button class="chip">列表</button>
+        <button class="chip">日历</button>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="addCard()">+ 新建任务</button>
+  </div>
+
+  <div class="kanban-board" id="kanban-board"></div>
+</div>
+
+<script src="../common.js"></script>
+<script>
+var columns = [
+  { id: 'pending', title: '待排课' },
+  { id: 'in_progress', title: '进行中' },
+  { id: 'full_waitlist', title: '满员/候补' },
+  { id: 'completed', title: '已完成' }
+];
+
+var tasks = [
+  { id: 1, col: 'pending', type: 'group', title: '搏击操 入门班', meta: '每周二/四 · 18:00 - 19:00', trainer: '刘强', initials: '刘', code: 'TK-2024' },
+  { id: 2, col: 'pending', type: 'group', title: '普拉提 中级班', meta: '每周一/三 · 10:00 - 11:00', trainer: '陈雨萱', initials: '陈', code: 'TK-2023' },
+  { id: 3, col: 'pending', type: 'pt', title: '王芳 — 增肌计划', meta: '每周五 · 16:00 - 17:30', trainer: '王建国', initials: '王', code: 'TK-2022' },
+  { id: 4, col: 'pending', type: 'nutrition', title: '张伟 — 饮食计划', meta: '月度评估 · 体脂目标 15%', trainer: '赵海龙', initials: '赵', code: 'TK-2021' },
+  { id: 5, col: 'in_progress', type: 'group', title: '瑜伽流 初级班', meta: '每周二/四 · 10:00 · 18/20人', trainer: '陈雨萱', initials: '陈', code: 'TK-2018' },
+  { id: 6, col: 'in_progress', type: 'pt', title: '李娜 — 产后恢复', meta: '每周一/三/五 · 09:00', trainer: '陈雨萱', initials: '陈', code: 'TK-2017' },
+  { id: 7, col: 'in_progress', type: 'group', title: 'HIIT 燃脂', meta: '每周一至五 · 17:00 · 22/25人', trainer: '赵海龙', initials: '赵', code: 'TK-2016' },
+  { id: 8, col: 'full_waitlist', type: 'group', title: '动感单车', meta: '每晚 19:00 · 30/30人 · 候补3人', trainer: '李教练', initials: '李', code: 'TK-2015' },
+  { id: 9, col: 'full_waitlist', type: 'pt', title: '周杰 — 马拉松备赛', meta: '每周六 · 06:00 · 已满 · 候补1人', trainer: '赵海龙', initials: '赵', code: 'TK-2014' },
+  { id: 10, col: 'completed', type: 'group', title: '力量训练 进阶班', meta: '5月9日 · 09:00 · 出勤 24/25', trainer: '王建国', initials: '王', code: 'TK-2010' },
+  { id: 11, col: 'completed', type: 'pt', title: '刘洋 — 体测评估', meta: '5月9日 · 体脂率 18.5% · 达标', trainer: '赵海龙', initials: '赵', code: 'TK-2009' }
+];
+
+var nextId = 12;
+
+function renderBoard() {
+  var board = document.getElementById('kanban-board');
+  board.innerHTML = columns.map(function(col) {
+    var colTasks = tasks.filter(function(t) { return t.col === col.id; });
+    return '<div class="kanban-column"><div class="kanban-column-header"><span class="kanban-column-title">'+col.title+'</span><span class="kanban-column-count">'+colTasks.length+'</span></div><div class="kanban-cards">'+colTasks.map(function(t) {
+      return '<div class="kanban-card"><div class="kanban-card-header"><span class="kanban-card-id">#'+t.code+'</span><span class="kanban-card-type '+t.type+'">'+ (t.type==='group'?'团课':t.type==='pt'?'私教':'营养') +'</span></div><div class="kanban-card-title">'+t.title+'</div><div class="kanban-card-meta">'+t.meta+'</div><div class="kanban-card-footer"><span>'+t.trainer+'</span><div class="kanban-card-avatar">'+t.initials+'</div></div><div style="margin-top:8px;display:flex;gap:4px;">'+getMoveBtns(t.id, t.col)+'</div></div>';
+    }).join('')+'</div></div>';
+  }).join('');
+}
+
+function getMoveBtns(id, currentCol) {
+  var colOrder = columns.map(function(c){return c.id;});
+  var idx = colOrder.indexOf(currentCol);
+  var btns = '';
+  if (idx > 0) btns += '<button class="btn-secondary" style="font-size:11px;padding:4px 8px;" onclick="moveCard('+id+',\''+colOrder[idx-1]+'\')">← 左移</button>';
+  if (idx < colOrder.length - 1) btns += '<button class="btn-secondary" style="font-size:11px;padding:4px 8px;" onclick="moveCard('+id+',\''+colOrder[idx+1]+'\')">右移 →</button>';
+  return btns || '<span style="font-size:11px;color:var(--stone);">已完成</span>';
+}
+
+function moveCard(id, toCol) {
+  var t = tasks.find(function(x){return x.id===id;});
+  if (t) t.col = toCol;
+  renderBoard();
+}
+
+function addCard() {
+  tasks.push({ id: nextId++, col: 'pending', type: 'group', title: '新课程 #'+nextId, meta: '待定时间', trainer: '待分配', initials: '待', code: 'TK-20'+(nextId+10) });
+  renderBoard();
+}
+
+renderBoard();
+
+onLoginSuccess = function() {
+  if (authState.role === 'member') {
+    document.querySelectorAll('.va-sidebar a').forEach(function(l) {
+      var t = l.textContent.trim();
+      if (t === '报表分析' || t === '系统设置') l.style.display = 'none';
+    });
+  }
+};
+onLogout = function() { document.querySelectorAll('.va-sidebar a').forEach(function(l) { l.style.display = ''; }); };
+</script>
+</body>
+</html>

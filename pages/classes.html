@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>课程管理 — GYMPRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../common.css">
+<style>
+.class-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); }
+.class-card {
+  border: 1px solid var(--hairline-soft); background: var(--canvas);
+  border-radius: var(--radius-none); overflow: hidden;
+  cursor: pointer; transition: border-color .15s;
+}
+.class-card:hover { border-color: var(--ink); }
+.class-card-img {
+  height: 180px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 48px;
+}
+.cc-blue { background: #e8f0fe; color: #1a73e8; }
+.cc-green { background: #e6f4ea; color: #137333; }
+.cc-orange { background: #fef7e0; color: #e37400; }
+.cc-purple { background: #f3e8fd; color: #7b1fa2; }
+.cc-pink { background: #fce4ec; color: #c2185b; }
+.cc-teal { background: #e0f2f1; color: #00695c; }
+.class-card-body { padding: var(--space-md) var(--space-lg); }
+.class-card-title { font-size: 16px; font-weight: 500; }
+.class-card-meta { font-size: 13px; color: var(--mute); margin-top: 4px; }
+.class-card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: var(--space-md);
+}
+.class-card-spots { font-size: 12px; font-weight: 500; }
+.class-card-spots.warning { color: var(--sale); }
+.class-card-spots.ok { color: var(--success); }
+.class-status-pill {
+  display: inline-block; padding: 2px 10px; border-radius: var(--radius-full);
+  font-size: 12px; font-weight: 500;
+}
+.class-status-pill.active { background: var(--success); color: var(--on-primary); }
+.class-status-pill.full { background: var(--sale); color: var(--on-primary); }
+.class-status-pill.pending { background: var(--soft-cloud); color: var(--mute); }
+
+@media (max-width: 960px) { .class-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .class-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="utility-bar">
+  <span>找门店</span><span>帮助</span>
+  <span id="util-join" onclick="openRegister()">加入我们</span>
+  <span id="util-login" onclick="openLogin()">登录</span>
+  <span id="util-logout" class="hidden" onclick="handleLogout()">退出登录</span>
+</div>
+<nav class="primary-nav">
+  <div class="nav-logo" onclick="location.href='../prototype.html'">GYM<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="../prototype.html" data-page="dashboard">仪表盘</a>
+    <a href="members.html" data-page="members">会员</a>
+    <a href="classes.html" data-page="classes" class="active">课程</a>
+    <a href="trainers.html" data-page="trainers">教练</a>
+    <a href="schedule.html" data-page="schedule">日程</a>
+  </div>
+  <input type="text" class="search-pill" placeholder="搜索..." />
+  <div id="nav-logged-out">
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14.5a2.5 2.5 0 005 0"/><path d="M4 7a5 5 0 0110 0v4l2 2H2l2-2V7z"/></svg></button>
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="5" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></button>
+  </div>
+  <div id="nav-logged-in" class="nav-user-area hidden">
+    <span class="nav-role-badge" id="nav-role-badge">管理员</span>
+    <span class="nav-user-name" id="nav-user-name">管理员</span>
+  </div>
+</nav>
+
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-backdrop" onclick="closeAuth()"></div>
+  <div id="auth-login" class="auth-panel">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">登录</div><div class="auth-subtitle">选择你的角色，进入训练管理系统</div>
+    <div class="auth-role-switch" id="login-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="login-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="login-password" placeholder="请输入密码" required /></div>
+      <div id="login-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">登录</button>
+    </form>
+    <div class="auth-switch-link">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+  </div>
+  <div id="auth-register" class="auth-panel hidden">
+    <div class="auth-logo">GYM<span>PRO</span></div><div class="auth-title">注册</div><div class="auth-subtitle">创建你的账号，开启训练之旅</div>
+    <div class="auth-role-switch" id="register-role-switch"><button data-role="member" class="active">会员</button><button data-role="admin">管理员</button></div>
+    <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+      <div class="auth-field"><label>姓名</label><input type="text" id="register-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="register-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="register-password" placeholder="请设置密码（至少6位）" minlength="6" required /></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="register-confirm" placeholder="请再次输入密码" required /></div>
+      <div id="register-error" class="auth-error hidden"></div><div id="register-success" class="auth-success hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">注册</button>
+    </form>
+    <div class="auth-switch-link">已有账号？<a onclick="switchToLogin()">立即登录</a></div>
+  </div>
+</div>
+
+<div class="page-layout">
+  <aside class="va-sidebar">
+    <div class="sidebar-section">主导航</div>
+    <a href="../prototype.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="11" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>仪表盘</a>
+    <a href="members.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="4.5" r="3"/><path d="M2.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>会员管理</a>
+    <a href="classes.html" class="active"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>课程安排</a>
+    <a href="trainers.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="4" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6"/><circle cx="11" cy="12" r="2.5"/><path d="M11 7v3.2M8.5 9.5h5"/></svg>教练团队</a>
+    <a href="schedule.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>日程管理</a>
+    <div class="sidebar-section">运营</div>
+    <a href="reports.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="4" height="8" rx="1"/><rect x="7" y="4" width="4" height="11" rx="1"/><rect x="12" y="9" width="4" height="6" rx="1"/></svg>报表分析</a>
+    <a href="settings.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>系统设置</a>
+    <div class="sidebar-section">快捷入口</div>
+    <a href="kanban.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M6 1v3h6V1M6 8h6M6 11h4"/></svg>排课看板</a>
+  </aside>
+
+  <main class="page-main">
+    <div class="page-content-header">
+      <h2 class="section-title">课程管理</h2>
+      <div style="display:flex;gap:var(--space-md);align-items:center;">
+        <div class="chip-row" id="class-filter-chips">
+          <button class="chip active" onclick="filterClasses('all', this)">全部</button>
+          <button class="chip" onclick="filterClasses('group', this)">团课</button>
+          <button class="chip" onclick="filterClasses('pt', this)">私教</button>
+          <button class="chip" onclick="filterClasses('active', this)">进行中</button>
+          <button class="chip" onclick="filterClasses('full', this)">已满员</button>
+        </div>
+        <button class="btn-primary">+ 新增课程</button>
+      </div>
+    </div>
+
+    <div class="class-grid" id="class-grid"></div>
+  </main>
+</div>
+
+<div id="class-modal" class="modal-overlay hidden">
+  <div style="position:absolute;inset:0;" onclick="closeClassModal()"></div>
+  <div class="modal-panel" style="position:relative;z-index:1;">
+    <div class="modal-header">
+      <h3 style="font-family:var(--font-display);font-size:24px;text-transform:uppercase;" id="class-modal-title">课程详情</h3>
+      <button class="modal-close" onclick="closeClassModal()">✕</button>
+    </div>
+    <div id="class-modal-content"></div>
+  </div>
+</div>
+
+<script src="../common.js"></script>
+<script>
+setActiveNav('classes');
+
+var classes = [
+  { id: 1, name: '力量训练 · 进阶', type: 'group', trainer: '王建国', schedule: '每周一/三/五', time: '09:00', price: 299, max: 25, enrolled: 20, status: 'active', color: 'green', icon: '🏋️' },
+  { id: 2, name: '瑜伽流 · 初级', type: 'group', trainer: '陈雨萱', schedule: '每周二/四', time: '10:00', price: 199, max: 20, enrolled: 17, status: 'active', color: 'blue', icon: '🧘' },
+  { id: 3, name: 'HIIT 燃脂', type: 'group', trainer: '赵海龙', schedule: '每周一至五', time: '17:00', price: 249, max: 25, enrolled: 22, status: 'active', color: 'orange', icon: '🔥' },
+  { id: 4, name: '动感单车', type: 'group', trainer: '李教练', schedule: '每晚', time: '19:00', price: 179, max: 30, enrolled: 30, status: 'full', color: 'purple', icon: '🚴' },
+  { id: 5, name: '拳击体能', type: 'group', trainer: '刘教练', schedule: '每周三/六', time: '15:00', price: 329, max: 20, enrolled: 18, status: 'active', color: 'teal', icon: '🥊' },
+  { id: 6, name: '李娜 — 产后恢复', type: 'pt', trainer: '陈雨萱', schedule: '每周一/三/五', time: '09:00', price: 500, max: 1, enrolled: 1, status: 'active', color: 'pink', icon: '👩' }
+];
+
+function renderClasses(data) {
+  var grid = document.getElementById('class-grid');
+  var html = '';
+  (data || classes).forEach(function(c) {
+    var spotsLeft = c.max - c.enrolled;
+    var spotsCls = spotsLeft <= 3 ? 'warning' : 'ok';
+    var spotText = c.status === 'full' ? '已满员' : ('仅剩 ' + spotsLeft + ' 席');
+    var statusPill = c.status === 'full' ? '<span class="class-status-pill full">已满员</span>' : '<span class="class-status-pill active">进行中</span>';
+    var btnHtml = c.status === 'full' ? '<button class="btn-secondary" style="width:100%;margin-top:12px;" onclick="event.stopPropagation();joinClass('+c.id+')">候补登记</button>' : '<button class="btn-primary" style="width:100%;margin-top:12px;" onclick="event.stopPropagation();joinClass('+c.id+')">立即报名</button>';
+    html += '<div class="class-card" onclick="openClassDetail('+c.id+')"><div class="class-card-img cc-'+c.color+'">'+c.icon+'</div><div class="class-card-body"><div class="class-card-title">'+c.name+'</div><div class="class-card-meta">'+c.trainer+' · '+c.schedule+'</div><div class="class-card-footer"><span style="font-size:14px;font-weight:500;">¥'+c.price+'/月</span><span class="class-card-spots '+spotsCls+'">'+spotText+'</span></div>'+statusPill+btnHtml+'</div></div>';
+  });
+  grid.innerHTML = html;
+}
+
+var currentFilter = 'all';
+function filterClasses(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('#class-filter-chips .chip').forEach(function(c) { c.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var filtered = classes;
+  if (type === 'group') filtered = classes.filter(function(c) { return c.type === 'group'; });
+  else if (type === 'pt') filtered = classes.filter(function(c) { return c.type === 'pt'; });
+  else if (type === 'active') filtered = classes.filter(function(c) { return c.status === 'active'; });
+  else if (type === 'full') filtered = classes.filter(function(c) { return c.status === 'full'; });
+  renderClasses(filtered);
+}
+
+function joinClass(id) {
+  if (!authState.loggedIn) { openLogin(); return; }
+  var c = classes.find(function(x) { return x.id === id; });
+  if (!c) return;
+  if (c.enrolled >= c.max && c.status !== 'full') { c.status = 'full'; }
+  else if (c.status !== 'full') { c.enrolled++; if (c.enrolled >= c.max) c.status = 'full'; }
+  if (currentFilter === 'all') renderClasses(classes);
+  else filterClasses(currentFilter, document.querySelector('#class-filter-chips .chip.active'));
+}
+
+function openClassDetail(id) {
+  var c = classes.find(function(x) { return x.id === id; });
+  if (!c) return;
+  document.getElementById('class-modal-title').textContent = c.name;
+  document.getElementById('class-modal-content').innerHTML = '<div style="display:grid;gap:var(--space-md);"><div class="auth-field"><label>类型</label><span>'+ (c.type==='group'?'团课':'私教') +'</span></div><div class="auth-field"><label>教练</label><span>'+c.trainer+'</span></div><div class="auth-field"><label>时间</label><span>'+c.schedule+' · '+c.time+'</span></div><div class="auth-field"><label>价格</label><span style="font-family:var(--font-display);font-size:24px;">¥'+c.price+'/月</span></div><div class="auth-field"><label>报名情况</label><span style="font-weight:500;">'+c.enrolled+'/'+c.max+' 人</span></div></div>';
+  document.getElementById('class-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeClassModal() { document.getElementById('class-modal').classList.add('hidden'); document.body.style.overflow = ''; }
+
+renderClasses(classes);
+
+onLoginSuccess = function() {
+  if (authState.role === 'member') {
+    document.querySelectorAll('.va-sidebar a').forEach(function(l) {
+      var t = l.textContent.trim();
+      if (t === '报表分析' || t === '系统设置') l.style.display = 'none';
+    });
+  }
+};
+onLogout = function() { document.querySelectorAll('.va-sidebar a').forEach(function(l) { l.style.display = ''; }); };
+</script>
+</body>
+</html>

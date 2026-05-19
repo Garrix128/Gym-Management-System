@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会员管理 — GYMPRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../common.css">
+<style>
+.member-search-row {
+  display: flex; gap: var(--space-md); align-items: center;
+  margin-bottom: var(--space-xl); flex-wrap: wrap;
+}
+.member-search-row .search-pill { width: 280px; }
+.member-filter-select {
+  background: var(--soft-cloud); border: none;
+  border-radius: var(--radius-lg); padding: 10px 16px;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 500;
+  color: var(--ink); outline: none; cursor: pointer; height: 40px;
+}
+.member-count { font-size: 12px; color: var(--stone); }
+.member-table .member-avatar-cell {
+  width: 40px; height: 40px; border-radius: var(--radius-full);
+  background: var(--soft-cloud); display: flex; align-items: center;
+  justify-content: center; font-weight: 500; font-size: 16px;
+}
+.member-table .plan-badge {
+  display: inline-block; padding: 2px 10px;
+  border-radius: var(--radius-full); font-size: 12px; font-weight: 500;
+}
+.plan-badge.pro { background: var(--ink); color: var(--on-primary); }
+.plan-badge.basic { background: var(--soft-cloud); color: var(--ink); }
+.plan-badge.pt { background: var(--info); color: var(--on-primary); }
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 9990;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-overlay.hidden { display: none; }
+.modal-panel {
+  background: var(--canvas); width: 600px; max-width: 94vw;
+  max-height: 90vh; overflow-y: auto;
+  padding: 40px;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--space-xl);
+}
+.modal-close {
+  width: 36px; height: 36px; border: none; background: var(--soft-cloud);
+  border-radius: var(--radius-full); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.action-link { color: var(--info); cursor: pointer; font-weight: 500; font-size: 14px; }
+.action-link:hover { text-decoration: underline; }
+.bodyscale-row {
+  display: flex; gap: var(--space-lg); padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--hairline-soft);
+  font-size: 14px;
+}
+.bodyscale-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<div class="utility-bar">
+  <span>找门店</span><span>帮助</span>
+  <span id="util-join" onclick="openRegister()">加入我们</span>
+  <span id="util-login" onclick="openLogin()">登录</span>
+  <span id="util-logout" class="hidden" onclick="handleLogout()">退出登录</span>
+</div>
+<nav class="primary-nav">
+  <div class="nav-logo" onclick="location.href='../prototype.html'">GYM<span>PRO</span></div>
+  <div class="nav-links">
+    <a href="../prototype.html" data-page="dashboard">仪表盘</a>
+    <a href="members.html" data-page="members" class="active">会员</a>
+    <a href="classes.html" data-page="classes">课程</a>
+    <a href="trainers.html" data-page="trainers">教练</a>
+    <a href="schedule.html" data-page="schedule">日程</a>
+  </div>
+  <input type="text" class="search-pill" placeholder="搜索会员..." id="member-search-input" oninput="filterMembers()" />
+  <div id="nav-logged-out">
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M7 14.5a2.5 2.5 0 005 0"/><path d="M4 7a5 5 0 0110 0v4l2 2H2l2-2V7z"/></svg>
+    </button>
+    <button class="btn-icon" style="background:transparent;" onclick="openLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="5" r="3.5"/><path d="M2 17c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+    </button>
+  </div>
+  <div id="nav-logged-in" class="nav-user-area hidden">
+    <span class="nav-role-badge" id="nav-role-badge">管理员</span>
+    <span class="nav-user-name" id="nav-user-name">管理员</span>
+  </div>
+</nav>
+
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-backdrop" onclick="closeAuth()"></div>
+  <div id="auth-login" class="auth-panel">
+    <div class="auth-logo">GYM<span>PRO</span></div>
+    <div class="auth-title">登录</div>
+    <div class="auth-subtitle">选择你的角色，进入训练管理系统</div>
+    <div class="auth-role-switch" id="login-role-switch">
+      <button data-role="member" class="active">会员</button><button data-role="admin">管理员</button>
+    </div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="login-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="login-password" placeholder="请输入密码" required /></div>
+      <div id="login-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">登录</button>
+    </form>
+    <div class="auth-switch-link">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+  </div>
+  <div id="auth-register" class="auth-panel hidden">
+    <div class="auth-logo">GYM<span>PRO</span></div>
+    <div class="auth-title">注册</div>
+    <div class="auth-subtitle">创建你的账号，开启训练之旅</div>
+    <div class="auth-role-switch" id="register-role-switch">
+      <button data-role="member" class="active">会员</button><button data-role="admin">管理员</button>
+    </div>
+    <form class="auth-form" id="register-form" onsubmit="handleRegister(event)">
+      <div class="auth-field"><label>姓名</label><input type="text" id="register-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>邮箱 / 手机号</label><input type="text" id="register-email" placeholder="请输入邮箱或手机号" required /></div>
+      <div class="auth-field"><label>密码</label><input type="password" id="register-password" placeholder="请设置密码（至少6位）" minlength="6" required /></div>
+      <div class="auth-field"><label>确认密码</label><input type="password" id="register-confirm" placeholder="请再次输入密码" required /></div>
+      <div id="register-error" class="auth-error hidden"></div>
+      <div id="register-success" class="auth-success hidden"></div>
+      <button type="submit" class="btn-primary auth-submit">注册</button>
+    </form>
+    <div class="auth-switch-link">已有账号？<a onclick="switchToLogin()">立即登录</a></div>
+  </div>
+</div>
+
+<div class="page-layout">
+  <aside class="va-sidebar">
+    <div class="sidebar-section">主导航</div>
+    <a href="../prototype.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="11" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>仪表盘</a>
+    <a href="members.html" class="active"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="4.5" r="3"/><path d="M2.5 17c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>会员管理</a>
+    <a href="classes.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>课程安排</a>
+    <a href="trainers.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="4" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6"/><circle cx="11" cy="12" r="2.5"/><path d="M11 7v3.2M8.5 9.5h5"/></svg>教练团队</a>
+    <a href="schedule.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="14" height="13" rx="2"/><path d="M2 7h14M5 1v3M13 1v3"/></svg>日程管理</a>
+    <div class="sidebar-section">运营</div>
+    <a href="reports.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="4" height="8" rx="1"/><rect x="7" y="4" width="4" height="11" rx="1"/><rect x="12" y="9" width="4" height="6" rx="1"/></svg>报表分析</a>
+    <a href="settings.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="3"/><path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke-linecap="round"/></svg>系统设置</a>
+    <div class="sidebar-section">快捷入口</div>
+    <a href="members.html#new"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v8M5 9h8"/></svg>新增会员</a>
+    <a href="kanban.html"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M6 1v3h6V1M6 8h6M6 11h4"/></svg>排课看板</a>
+  </aside>
+
+  <main class="page-main">
+    <div class="page-content-header">
+      <h2 class="section-title">会员管理</h2>
+      <button class="btn-primary" onclick="openMemberModal()">+ 新增会员</button>
+    </div>
+
+    <div class="member-search-row">
+      <select class="member-filter-select" onchange="filterMembers()" id="member-plan-filter">
+        <option value="">全部计划</option>
+        <option value="Pro">Pro 年费</option>
+        <option value="Basic">基础会员</option>
+        <option value="PT">私教会员</option>
+      </select>
+      <select class="member-filter-select" onchange="filterMembers()" id="member-sort">
+        <option value="name">按姓名排序</option>
+        <option value="attendance">按出勤率排序</option>
+        <option value="date">按注册日期排序</option>
+      </select>
+      <span class="member-count" id="member-count">共 5 名会员</span>
+    </div>
+
+    <div class="card" style="padding:0;">
+      <table class="data-table member-table" id="member-table">
+        <thead>
+          <tr><th>会员</th><th>计划</th><th>注册日期</th><th>出勤率</th><th>体测状态</th><th>操作</th></tr>
+        </thead>
+        <tbody id="member-tbody"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Member Detail / Add Modal -->
+<div id="member-modal" class="modal-overlay hidden">
+  <div class="modal-backdrop" onclick="closeMemberModal()" style="position:absolute;inset:0;"></div>
+  <div class="modal-panel" style="position:relative;z-index:1;">
+    <div class="modal-header">
+      <h3 style="font-family:var(--font-display);font-size:24px;text-transform:uppercase;" id="modal-title">新增会员</h3>
+      <button class="modal-close" onclick="closeMemberModal()">✕</button>
+    </div>
+    <form id="member-form" onsubmit="saveMember(event)" class="auth-form">
+      <div class="auth-field"><label>姓名</label><input type="text" id="m-name" placeholder="请输入姓名" required /></div>
+      <div class="auth-field"><label>手机号</label><input type="text" id="m-phone" placeholder="请输入手机号" /></div>
+      <div class="auth-field"><label>邮箱</label><input type="email" id="m-email" placeholder="请输入邮箱" /></div>
+      <div class="auth-field"><label>会员计划</label><select id="m-plan"><option value="Pro">Pro 年费</option><option value="Basic">基础会员</option><option value="PT">私教会员</option></select></div>
+      <input type="hidden" id="m-id" />
+      <div id="member-form-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn-primary auth-submit" id="member-form-submit">保存</button>
+    </form>
+    <div id="bodyscale-section" class="hidden" style="margin-top:var(--space-xl);">
+      <h4 style="font-size:14px;font-weight:500;margin-bottom:var(--space-md);">体测记录</h4>
+      <div id="bodyscale-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../common.js"></script>
+<script>
+setActiveNav('members');
+
+var API_BASE = '/api/members';
+var editingId = null;
+var currentMembers = [];
+
+// 带认证头的 fetch 封装
+function apiFetch(url, options) {
+  options = options || {};
+  options.headers = options.headers || {};
+  options.headers['x-user-role'] = authState.role || '';
+  options.headers['x-user-email'] = authState.email || '';
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(options.body);
+  }
+  return fetch(url, options).then(function(r) {
+    return r.json().then(function(data) {
+      if (!r.ok) throw new Error(data.error || '请求失败');
+      return data;
+    });
+  });
+}
+
+// 从 API 加载会员列表
+function loadMembers() {
+  var params = new URLSearchParams();
+  var searchEl = document.getElementById('member-search-input');
+  if (searchEl) params.set('search', searchEl.value);
+  var planEl = document.getElementById('member-plan-filter');
+  if (planEl && planEl.value) params.set('plan', planEl.value);
+  var sortEl = document.getElementById('member-sort');
+  if (sortEl) params.set('sort', sortEl.value);
+
+  apiFetch(API_BASE + '?' + params.toString())
+    .then(function(data) {
+      currentMembers = data;
+      renderMembers(data);
+    })
+    .catch(function(err) {
+      console.error('加载会员失败:', err);
+      document.getElementById('member-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--stone);">⚠ 无法加载会员数据，请确保后端服务已启动</td></tr>';
+    });
+}
+
+function renderMembers(data) {
+  var tbody = document.getElementById('member-tbody');
+  var planLabels = { Pro: 'Pro 年费', Basic: '基础会员', PT: '私教会员' };
+  var planClasses = { Pro: 'pro', Basic: 'basic', PT: 'pt' };
+  var isAdmin = authState.role === 'admin';
+  var html = '';
+  (data || []).forEach(function(m) {
+    var badgeHtml = (m.badges || []).map(function(b) {
+      var style = b === '进步最快' ? 'margin-left:4px;color:#7491e2;border-color:#7491e2' : 'margin-left:4px;';
+      return '<span class="badge badge-info" style="'+style+'">'+b+'</span>';
+    }).join('');
+    var bsStatus = m.bodyscale && m.bodyscale.length ? '<span style="color:var(--success);">'+m.bodyscale[m.bodyscale.length-1].date+'</span>' : '<span style="color:var(--stone);">暂无</span>';
+    var actionHtml = isAdmin
+      ? '<span class="action-link" onclick="viewMember('+m.id+')">详情</span> <span class="action-link" style="color:var(--sale);" onclick="deleteMember('+m.id+')">删除</span>'
+      : '<span class="action-link" onclick="viewMember('+m.id+')">详情</span>';
+    html += '<tr><td><div style="display:flex;align-items:center;gap:12px;"><div class="member-avatar-cell">'+m.name.charAt(0)+'</div><div><span style="font-weight:500;">'+m.name+'</span>'+badgeHtml+'</div></div></td>';
+    html += '<td><span class="plan-badge '+planClasses[m.plan]+'">'+(planLabels[m.plan] || m.plan)+'</span></td>';
+    html += '<td style="color:var(--mute);">'+m.joinDate+'</td>';
+    html += '<td><span style="color:'+(m.attendance>=90?'var(--success)':m.attendance>=80?'var(--ink)':'var(--sale)')+';font-weight:500;">'+m.attendance+'%</span></td>';
+    html += '<td>'+bsStatus+'</td>';
+    html += '<td>'+actionHtml+'</td></tr>';
+  });
+  tbody.innerHTML = html;
+  document.getElementById('member-count').textContent = '共 ' + data.length + ' 名会员';
+}
+
+function filterMembers() {
+  loadMembers();
+}
+
+function openMemberModal() {
+  if (authState.role !== 'admin') { alert('仅管理员可新增会员'); return; }
+  editingId = null;
+  document.getElementById('modal-title').textContent = '新增会员';
+  document.getElementById('m-id').value = '';
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-phone').value = '';
+  document.getElementById('m-email').value = '';
+  document.getElementById('m-plan').value = 'Pro';
+  document.getElementById('member-form-error').classList.add('hidden');
+  document.getElementById('bodyscale-section').classList.add('hidden');
+  document.getElementById('member-form-submit').textContent = '保存';
+  document.getElementById('member-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeMemberModal() { document.getElementById('member-modal').classList.add('hidden'); document.body.style.overflow = ''; }
+
+function viewMember(id) {
+  var m = currentMembers.find(function(x) { return x.id === id; });
+  if (!m) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = m.name + ' — 会员详情';
+  document.getElementById('m-id').value = m.id;
+  document.getElementById('m-name').value = m.name;
+  document.getElementById('m-phone').value = m.phone;
+  document.getElementById('m-email').value = m.email;
+  document.getElementById('m-plan').value = m.plan;
+  document.getElementById('member-form-error').classList.add('hidden');
+
+  // 管理员可编辑，会员只读
+  var isAdmin = authState.role === 'admin';
+  document.getElementById('member-form-submit').textContent = isAdmin ? '更新' : '（仅管理员可编辑）';
+  document.getElementById('member-form-submit').disabled = !isAdmin;
+  document.getElementById('m-name').disabled = !isAdmin;
+  document.getElementById('m-phone').disabled = !isAdmin;
+  document.getElementById('m-email').disabled = !isAdmin;
+  document.getElementById('m-plan').disabled = !isAdmin;
+
+  var bsSection = document.getElementById('bodyscale-section');
+  var bsList = document.getElementById('bodyscale-list');
+  if (m.bodyscale && m.bodyscale.length) {
+    bsSection.classList.remove('hidden');
+    bsList.innerHTML = m.bodyscale.map(function(bs) {
+      return '<div class="bodyscale-row"><span>'+bs.date+'</span><span>体脂率: '+bs.fat+'%</span><span>肌肉量: '+bs.muscle+'kg</span><span>体重: '+bs.weight+'kg</span></div>';
+    }).join('');
+  } else {
+    bsSection.classList.add('hidden');
+  }
+  document.getElementById('member-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function saveMember(e) {
+  e.preventDefault();
+  if (authState.role !== 'admin') {
+    document.getElementById('member-form-error').textContent = '仅管理员可操作';
+    document.getElementById('member-form-error').classList.remove('hidden');
+    return;
+  }
+  var name = document.getElementById('m-name').value.trim();
+  if (!name) { document.getElementById('member-form-error').textContent = '请输入姓名'; document.getElementById('member-form-error').classList.remove('hidden'); return; }
+  document.getElementById('member-form-error').classList.add('hidden');
+
+  var payload = {
+    name: name,
+    phone: document.getElementById('m-phone').value.trim(),
+    email: document.getElementById('m-email').value.trim(),
+    plan: document.getElementById('m-plan').value
+  };
+
+  var id = document.getElementById('m-id').value;
+  var method = id ? 'PUT' : 'POST';
+  var url = id ? (API_BASE + '/' + id) : API_BASE;
+
+  apiFetch(url, { method: method, body: payload })
+    .then(function() {
+      closeMemberModal();
+      loadMembers();
+    })
+    .catch(function(err) {
+      document.getElementById('member-form-error').textContent = err.message;
+      document.getElementById('member-form-error').classList.remove('hidden');
+    });
+}
+
+function deleteMember(id) {
+  if (authState.role !== 'admin') { alert('仅管理员可删除会员'); return; }
+  if (!confirm('确定要删除该会员吗？')) return;
+  apiFetch(API_BASE + '/' + id, { method: 'DELETE' })
+    .then(function() { loadMembers(); })
+    .catch(function(err) { alert(err.message); });
+}
+
+// 初始化 — 加载数据
+loadMembers();
+
+// 角色权限控制
+function applyRoleUI() {
+  var isAdmin = authState.role === 'admin';
+  var btn = document.querySelector('.page-content-header .btn-primary');
+  if (btn) {
+    if (isAdmin) { btn.style.display = ''; btn.textContent = '+ 新增会员'; btn.onclick = openMemberModal; }
+    else { btn.style.display = 'none'; }
+  }
+}
+
+onLoginSuccess = function() {
+  applyRoleUI();
+  if (authState.role === 'member') {
+    document.querySelectorAll('.va-sidebar a').forEach(function(l) {
+      var t = l.textContent.trim();
+      if (t === '报表分析' || t === '系统设置') l.style.display = 'none';
+    });
+  }
+  loadMembers();
+};
+onLogout = function() {
+  applyRoleUI();
+  document.querySelectorAll('.va-sidebar a').forEach(function(l) { l.style.display = ''; });
+  loadMembers();
+};
+
+// 初始权限 UI
+applyRoleUI();
+</script>
+</body>
+</html>
